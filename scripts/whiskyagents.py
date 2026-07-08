@@ -7,11 +7,7 @@ BASE_URL = "https://whiskyagents.com"
 URL = BASE_URL + "/collections/neu"
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/137.0 Safari/537.36"
-    )
+    "User-Agent": "Mozilla/5.0"
 }
 
 
@@ -29,6 +25,7 @@ def get_products():
     products = []
     seen = set()
 
+    # Ищем только ссылки на товары
     for a in soup.select('a[href*="/products/"]'):
 
         href = a.get("href")
@@ -42,56 +39,37 @@ def get_products():
 
         seen.add(url)
 
+        # Поднимаемся к карточке товара
         card = a
-        for _ in range(8):
+        for _ in range(5):
             if card is None:
                 break
 
-            classes = " ".join(card.get("class", [])).lower()
+            classes = " ".join(card.get("class", []))
 
-            if (
-                "product" in classes
-                or "card" in classes
-                or "grid" in classes
-                or "item" in classes
-            ):
+            if any(x in classes.lower() for x in (
+                "product",
+                "card",
+                "grid",
+                "item"
+            )):
                 break
 
             card = card.parent
 
-        if card is None:
-            continue
-
-        text = clean(card.get_text(" ", strip=True))
+        text = clean(card.get_text(" ", strip=True) if card else a.get_text())
 
         if len(text) < 10:
             continue
 
-        # ---------- Цена ----------
+        name = text
         price = ""
 
-        price_node = (
-            card.select_one(".price")
-            or card.select_one(".price-item")
-            or card.select_one(".product-price")
-            or card.select_one(".money")
-            or card.select_one("[data-product-price]")
-            or card.select_one('[class*="price"]')
-        )
+        # Ищем цену в тексте карточки
+        m = re.search(r"\d+[.,]?\d*\s*€", text)
 
-        if price_node:
-            price = clean(price_node.get_text(" ", strip=True))
-
-        # Если не нашли цену — ищем регулярным выражением
-        if not price:
-            m = re.search(r"\d+[.,]\d+\s*€", text)
-            if m:
-                price = m.group(0)
-
-        # ---------- Название ----------
-        name = text
-
-        if price:
+        if m:
+            price = m.group(0)
             name = text.replace(price, "").strip()
 
         products.append(
