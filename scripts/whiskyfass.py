@@ -1,7 +1,8 @@
+import re
+from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import re
 
 BASE_URL = "https://whiskyfass.de"
 URL = BASE_URL + "/Neu-im-Sortiment"
@@ -25,27 +26,20 @@ def get_products():
     products = []
     seen = set()
 
-    # Только ссылки на товары из списка новинок
-    for a in soup.select("a[href]"):
+    # Берем только ссылки на реальные товары
+    links = soup.select('a[href*="/detail/"]')
+
+    if not links:
+        links = soup.select('a[href*="/artikel/"]')
+
+    if not links:
+        links = soup.select('a[href*="/product/"]')
+
+    for a in links:
 
         href = a.get("href")
 
         if not href:
-            continue
-
-        if any(x in href.lower() for x in (
-            "javascript",
-            "mailto",
-            "kontakt",
-            "konto",
-            "warenkorb",
-            "newsletter",
-            "#"
-        )):
-            continue
-
-        # Пропускаем категории
-        if href.endswith("/"):
             continue
 
         url = urljoin(BASE_URL, href)
@@ -53,26 +47,11 @@ def get_products():
         if url in seen:
             continue
 
-        card = a
-        for _ in range(5):
-            if card is None:
-                break
+        seen.add(url)
 
-            classes = " ".join(card.get("class", []))
+        text = clean(a.get_text(" ", strip=True))
 
-            if any(x in classes.lower() for x in (
-                "product",
-                "article",
-                "box",
-                "item"
-            )):
-                break
-
-            card = card.parent
-
-        text = clean(card.get_text(" ", strip=True) if card else a.get_text())
-
-        if len(text) < 15:
+        if len(text) < 8:
             continue
 
         price = ""
@@ -81,18 +60,19 @@ def get_products():
 
         if m:
             price = m.group(0)
+            name = text.replace(price, "").strip()
+        else:
+            name = text
 
-        name = text.replace(price, "").strip()
+        products.append(
+            {
+                "id": url,
+                "name": name,
+                "price": price,
+                "url": url,
+            }
+        )
 
-        products.append({
-            "id": url,
-            "name": name,
-            "price": price,
-            "url": url,
-        })
-
-        seen.add(url)
-
-    print(f"Whiskyfass: {len(products)} товаров")
+    print(f"Whiskyfass: найдено {len(products)} товаров")
 
     return products
