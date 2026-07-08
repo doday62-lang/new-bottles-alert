@@ -1,69 +1,51 @@
-import re
-from urllib.parse import urljoin
-
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import re
 
 BASE_URL = "https://whiskyfass.de"
 URL = BASE_URL + "/Neu-im-Sortiment"
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/137.0 Safari/537.36"
-    )
+    "User-Agent": "Mozilla/5.0"
 }
 
 
 def clean(text):
-    if not text:
-        return ""
     return " ".join(text.split())
-
-
-def extract_price(text):
-    m = re.search(r"(\d+[.,]\d+\s*€)", text)
-    if m:
-        return m.group(1)
-    return ""
 
 
 def get_products():
 
-    response = requests.get(
-        URL,
-        headers=HEADERS,
-        timeout=30,
-    )
+    r = requests.get(URL, headers=HEADERS, timeout=30)
+    r.raise_for_status()
 
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "lxml")
+    soup = BeautifulSoup(r.text, "lxml")
 
     products = []
     seen = set()
 
-    # все ссылки на товары
-    for link in soup.select("a[href]"):
+    # Только ссылки на товары из списка новинок
+    for a in soup.select("a[href]"):
 
-        href = link.get("href")
+        href = a.get("href")
 
         if not href:
             continue
 
-        # исключаем служебные ссылки
-        if any(x in href for x in (
-            "/konto",
-            "/warenkorb",
-            "/kontakt",
-            "/newsletter",
-            "#",
+        if any(x in href.lower() for x in (
+            "javascript",
+            "mailto",
+            "kontakt",
+            "konto",
+            "warenkorb",
+            "newsletter",
+            "#"
         )):
             continue
 
-        # ссылка должна вести на карточку товара
-        if href.count("/") < 2:
+        # Пропускаем категории
+        if href.endswith("/"):
             continue
 
         url = urljoin(BASE_URL, href)
@@ -71,17 +53,36 @@ def get_products():
         if url in seen:
             continue
 
-        name = clean(link.get_text())
+        card = a
+        for _ in range(5):
+            if card is None:
+                break
 
-        if len(name) < 10:
+            classes = " ".join(card.get("class", []))
+
+            if any(x in classes.lower() for x in (
+                "product",
+                "article",
+                "box",
+                "item"
+            )):
+                break
+
+            card = card.parent
+
+        text = clean(card.get_text(" ", strip=True) if card else a.get_text())
+
+        if len(text) < 15:
             continue
-
-        parent = link.find_parent()
 
         price = ""
 
-        if parent:
-            price = extract_price(parent.get_text(" ", strip=True))
+        m = re.search(r"\d+[.,]\d+\s*€", text)
+
+        if m:
+            price = m.group(0)
+
+        name = text.replace(price, "").strip()
 
         products.append({
             "id": url,
@@ -92,6 +93,6 @@ def get_products():
 
         seen.add(url)
 
-    print(f"Whiskyfass: найдено {len(products)} товаров")
+    print(f"Whiskyfass: {len(products)} товаров")
 
     return products
