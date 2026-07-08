@@ -4,11 +4,11 @@ import requests
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-MAX_MESSAGE_LENGTH = 3900
+# Делаем запас под заголовок сообщения
+MAX_MESSAGE_LENGTH = 3500
 
 
 def _send(text: str):
-
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     response = requests.post(
@@ -16,10 +16,14 @@ def _send(text: str):
         json={
             "chat_id": CHAT_ID,
             "text": text,
-            "disable_web_page_preview": False,
+            "disable_web_page_preview": True,
         },
         timeout=30,
     )
+
+    if response.status_code != 200:
+        print("Telegram error:")
+        print(response.text)
 
     response.raise_for_status()
 
@@ -34,6 +38,7 @@ def send_message(text: str):
         print("CHAT_ID не задан")
         return
 
+    # Если сообщение небольшое — отправляем сразу
     if len(text) <= MAX_MESSAGE_LENGTH:
         _send(text)
         return
@@ -41,15 +46,22 @@ def send_message(text: str):
     parts = []
     current = ""
 
-    for line in text.split("\n"):
+    for line in text.splitlines():
+
+        # Если одна строка слишком длинная — обрезаем её
+        while len(line) > MAX_MESSAGE_LENGTH:
+            parts.append(line[:MAX_MESSAGE_LENGTH])
+            line = line[MAX_MESSAGE_LENGTH:]
+
+        if not current:
+            current = line
+            continue
 
         if len(current) + len(line) + 1 > MAX_MESSAGE_LENGTH:
             parts.append(current)
             current = line
         else:
-            if current:
-                current += "\n"
-            current += line
+            current += "\n" + line
 
     if current:
         parts.append(current)
@@ -57,9 +69,7 @@ def send_message(text: str):
     total = len(parts)
 
     for i, part in enumerate(parts, start=1):
-
         header = f"📨 Часть {i}/{total}\n\n"
-
         _send(header + part)
 
     print(f"Отправлено сообщений: {total}")
