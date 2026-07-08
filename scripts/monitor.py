@@ -1,70 +1,100 @@
-from storage import (
-    load_products,
-    save_products,
-    add_product,
-    is_new,
-)
+from datetime import datetime
 
+from storage import load_products, save_products, add_product, is_new
 from telegram_sender import send_message
 
 from whiskyagents import get_products as agents_products
 from whiskyfass import get_products as fass_products
 
 
-def check_store(store_name, products, known_products):
-
-    print(f"Проверяем {store_name}...")
-
-    new_count = 0
+def collect_new(store_name, products, known_products):
+    new_items = []
 
     for product in products:
 
-        product_id = product["id"]
-
-        if not is_new(product_id, known_products):
+        if not is_new(product["id"], known_products):
             continue
 
-        message = (
-            f"🥃 Новая бутылка!\n\n"
-            f"🏪 Магазин: {store_name}\n"
-            f"📦 {product['name']}\n"
+        add_product(product["id"], known_products)
+
+        new_items.append(product)
+
+    return {
+        "store": store_name,
+        "items": new_items
+    }
+
+
+def build_message(results):
+
+    total = sum(len(x["items"]) for x in results)
+
+    if total == 0:
+        return None
+
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+    lines = [
+        f"🥃 Найдено {total} новых бутылок",
+        f"📅 {now}",
+        ""
+    ]
+
+    for result in results:
+
+        if not result["items"]:
+            continue
+
+        lines.append("━━━━━━━━━━━━━━━━━━")
+        lines.append("")
+        lines.append(
+            f"🏪 {result['store']} ({len(result['items'])})"
         )
+        lines.append("")
 
-        if product["price"]:
-            message += f"💶 {product['price']}\n"
+        for item in result["items"]:
 
-        message += f"\n🔗 {product['url']}"
+            lines.append(f"• {item['name']}")
 
-        send_message(message)
+            if item["price"]:
+                lines.append(f"💶 {item['price']}")
 
-        add_product(product_id, known_products)
+            lines.append(item["url"])
+            lines.append("")
 
-        new_count += 1
-
-    print(f"{store_name}: найдено новых {new_count}")
+    return "\n".join(lines)
 
 
 def main():
 
-    known_products = load_products()
+    known = load_products()
 
-    print(f"Известных товаров: {len(known_products)}")
+    results = []
 
-    check_store(
-        "WhiskyAgents",
-        agents_products(),
-        known_products,
+    results.append(
+        collect_new(
+            "WhiskyAgents",
+            agents_products(),
+            known
+        )
     )
 
-    check_store(
-        "Whiskyfass",
-        fass_products(),
-        known_products,
+    results.append(
+        collect_new(
+            "Whiskyfass",
+            fass_products(),
+            known
+        )
     )
 
-    save_products(known_products)
+    message = build_message(results)
 
-    print("Готово.")
+    if message:
+        send_message(message)
+    else:
+        print("Новых бутылок нет.")
+
+    save_products(known)
 
 
 if __name__ == "__main__":
