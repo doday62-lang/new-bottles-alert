@@ -8,12 +8,23 @@ BASE_URL = "https://whiskyfass.de"
 URL = BASE_URL + "/Neu-im-Sortiment"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/137.0 Safari/537.36"
+    )
 }
 
 
 def clean(text):
     return " ".join(text.split())
+
+
+def find_price(text):
+    m = re.search(r"\d+[.,]\d+\s*€", text)
+    if m:
+        return m.group(0)
+    return ""
 
 
 def get_products():
@@ -23,23 +34,47 @@ def get_products():
 
     soup = BeautifulSoup(r.text, "lxml")
 
+    selectors = [
+        ".product",
+        ".product-item",
+        ".product-box",
+        ".item",
+        ".article",
+        ".product--box",
+        ".listing .row > div",
+        ".products > *",
+        ".product-grid > *",
+    ]
+
+    cards = []
+
+    for selector in selectors:
+        cards = soup.select(selector)
+        if len(cards) > 5:
+            print(f"Используется селектор: {selector}")
+            break
+
+    if not cards:
+        cards = soup.find_all("article")
+
     products = []
     seen = set()
 
-    # Берем только ссылки на реальные товары
-    links = soup.select('a[href*="/detail/"]')
+    for card in cards:
 
-    if not links:
-        links = soup.select('a[href*="/artikel/"]')
+        link = card.find("a", href=True)
 
-    if not links:
-        links = soup.select('a[href*="/product/"]')
+        if not link:
+            continue
 
-    for a in links:
+        href = link["href"]
 
-        href = a.get("href")
-
-        if not href:
+        if (
+            "konto" in href.lower()
+            or "kontakt" in href.lower()
+            or "newsletter" in href.lower()
+            or "warenkorb" in href.lower()
+        ):
             continue
 
         url = urljoin(BASE_URL, href)
@@ -47,22 +82,20 @@ def get_products():
         if url in seen:
             continue
 
-        seen.add(url)
+        text = clean(card.get_text(" ", strip=True))
 
-        text = clean(a.get_text(" ", strip=True))
-
-        if len(text) < 8:
+        if len(text) < 15:
             continue
 
-        price = ""
+        price = find_price(text)
 
-        m = re.search(r"\d+[.,]\d+\s*€", text)
+        name = text
 
-        if m:
-            price = m.group(0)
-            name = text.replace(price, "").strip()
-        else:
-            name = text
+        if price:
+            name = name.replace(price, "").strip()
+
+        if len(name) < 5:
+            continue
 
         products.append(
             {
@@ -72,6 +105,8 @@ def get_products():
                 "url": url,
             }
         )
+
+        seen.add(url)
 
     print(f"Whiskyfass: найдено {len(products)} товаров")
 
