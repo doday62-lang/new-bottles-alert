@@ -30,58 +30,67 @@ def get_products():
         print("Whiskyfass: product-list не найден")
         return []
 
-    cards = product_list.select(
-        'div.product-wrapper[itemtype*="Product"]'
-    )
+    cards = product_list.select("div.product-wrapper")
 
     products = []
     seen = set()
 
-    for card in cards[:40]:
+    for card in cards:
 
-    # ---------- ССЫЛКА ----------
-    link = card.select_one(
-        "div.productbox-head a[href]"
-    )
+        # Ограничиваемся первыми 40 карточками
+        if len(products) >= 40:
+            break
 
-    if link is None:
-        continue
+        # ---------- ССЫЛКА ----------
+        link = card.select_one("div.productbox-head a[href]")
 
-    url = urljoin(URL, link["href"])
+        if link is None:
+            link = card.select_one("a[href]")
 
-    # ---------- НАЗВАНИЕ ----------
-    title = card.select_one(
-        "div.productbox-title span.title"
-    )
+        if link is None:
+            continue
 
-    if title:
-        name = clean(title.get_text(" ", strip=True))
-    else:
-        name = clean(link.get_text(" ", strip=True))
+        href = link.get("href")
 
-    # ---------- ЦЕНА ----------
-    price = ""
+        if not href:
+            continue
 
-    price_node = (
-        card.select_one("div.price.productbox-price")
-        or card.select_one(".price_wrapper")
-        or card.select_one(".price")
-        or card.select_one('[itemprop="price"]')
-    )
+        url = urljoin(URL, href)
 
-    if price_node:
-        price = clean(price_node.get_text(" ", strip=True))
+        if url in seen:
+            continue
 
-    products.append(
-        {
-            "id": url,
-            "name": name,
-            "price": price,
-            "url": url,
-        }
-    )
+        seen.add(url)
 
-    products = products[:40]
+        # ---------- НАЗВАНИЕ ----------
+        title = card.select_one("div.productbox-title span.title")
+
+        if title:
+            name = clean(title.get_text(" ", strip=True))
+        else:
+            name = clean(link.get_text(" ", strip=True))
+
+        # ---------- ЦЕНА ----------
+        price = ""
+
+        price_node = (
+            card.select_one("div.price.productbox-price")
+            or card.select_one(".price_wrapper")
+            or card.select_one(".price")
+            or card.select_one('[itemprop="price"]')
+        )
+
+        if price_node:
+            price = clean(price_node.get_text(" ", strip=True))
+
+        products.append(
+            {
+                "id": url,
+                "name": name,
+                "price": price,
+                "url": url,
+            }
+        )
 
     print(f"Whiskyfass: найдено {len(products)} товаров")
 
