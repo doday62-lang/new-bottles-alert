@@ -16,15 +16,33 @@ HEADERS = {
 }
 
 
+PRICE_RE = re.compile(r"\d+[.,]\d+\s*€")
+
+
 def clean(text):
     return " ".join(text.split())
 
 
-def find_price(text):
-    m = re.search(r"\d+[.,]\d+\s*€", text)
-    if m:
-        return m.group(0)
-    return ""
+def find_card(node):
+    """
+    Поднимаемся вверх по DOM до контейнера карточки товара.
+    """
+    current = node
+
+    for _ in range(8):
+
+        if current is None:
+            break
+
+        txt = clean(current.get_text(" ", strip=True))
+
+        # Карточка товара почти всегда содержит цену
+        if PRICE_RE.search(txt):
+            return current
+
+        current = current.parent
+
+    return None
 
 
 def get_products():
@@ -34,47 +52,50 @@ def get_products():
 
     soup = BeautifulSoup(r.text, "lxml")
 
-    selectors = [
-        ".product",
-        ".product-item",
-        ".product-box",
-        ".item",
-        ".article",
-        ".product--box",
-        ".listing .row > div",
-        ".products > *",
-        ".product-grid > *",
-    ]
-
-    cards = []
-
-    for selector in selectors:
-        cards = soup.select(selector)
-        if len(cards) > 5:
-            print(f"Используется селектор: {selector}")
-            break
-
-    if not cards:
-        cards = soup.find_all("article")
-
     products = []
     seen = set()
 
-    for card in cards:
-
-        link = card.find("a", href=True)
-
-        if not link:
-            continue
+    # Ищем только ссылки с длинным текстом
+    for link in soup.find_all("a", href=True):
 
         href = link["href"]
 
-        if (
-            "konto" in href.lower()
-            or "kontakt" in href.lower()
-            or "newsletter" in href.lower()
-            or "warenkorb" in href.lower()
-        ):
+        if href.startswith("#"):
+            continue
+
+        if "javascript" in href.lower():
+            continue
+
+        if any(x in href.lower() for x in (
+            "konto",
+            "newsletter",
+            "kontakt",
+            "warenkorb",
+            "service",
+            "blog",
+            "hersteller",
+        )):
+            continue
+
+        card = find_card(link)
+
+        if card is None:
+            continue
+
+        text = clean(card.get_text(" ", strip=True))
+
+        # Если нет цены — почти наверняка это не товар
+        price_match = PRICE_RE.search(text)
+
+        if not price_match:
+            continue
+
+        price = price_match.group(0)
+
+        name = text.replace(price, "").strip()
+
+        # Отбрасываем слишком короткие названия
+        if len(name) < 8:
             continue
 
         url = urljoin(BASE_URL, href)
@@ -82,20 +103,7 @@ def get_products():
         if url in seen:
             continue
 
-        text = clean(card.get_text(" ", strip=True))
-
-        if len(text) < 15:
-            continue
-
-        price = find_price(text)
-
-        name = text
-
-        if price:
-            name = name.replace(price, "").strip()
-
-        if len(name) < 5:
-            continue
+        seen.add(url)
 
         products.append(
             {
@@ -106,7 +114,16 @@ def get_products():
             }
         )
 
-        seen.add(url)
+    # Удаляем возможные дубликаты по названию
+    unique = {}
+
+    for p in products:
+        unique[p["name"]] = p
+
+    products = list(unique.values())
+
+    # Ограничиваемся первыми 40 карточками
+    products = products[:40]
 
     print(f"Whiskyfass: найдено {len(products)} товаров")
 
