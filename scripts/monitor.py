@@ -6,6 +6,7 @@ from telegram_sender import send_message
 from whiskyagents import get_products as agents_products
 from whiskyfass import get_products as fass_products
 from whiskysite import get_products as whiskysite_products
+from maltucky import get_products as maltucky_products
 
 
 def collect_new(store_name, products, known_products):
@@ -28,7 +29,7 @@ def collect_new(store_name, products, known_products):
 
 def build_message(results):
 
-    total = sum(len(x["items"]) for x in results)
+    total = sum(len(store["items"]) for store in results)
 
     if total == 0:
         return None
@@ -47,17 +48,14 @@ def build_message(results):
             continue
 
         lines.append("━━━━━━━━━━━━━━━━━━")
-        lines.append("")
-        lines.append(
-            f"🏪 {result['store']} ({len(result['items'])})"
-        )
+        lines.append(f"🏪 {result['store']} ({len(result['items'])})")
         lines.append("")
 
         for item in result["items"]:
 
             lines.append(f"• {item['name']}")
 
-            if item["price"]:
+            if item.get("price"):
                 lines.append(f"💶 {item['price']}")
 
             lines.append(item["url"])
@@ -95,6 +93,15 @@ def main():
         collect_new(
             "WhiskySite",
             whiskysite_products(),
+            known
+        )
+    )
+
+    # Maltucky
+    results.append(
+        collect_new(
+            "Maltucky",
+            maltucky_products(),
             known
         )
     )
