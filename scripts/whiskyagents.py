@@ -1,7 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
-URL = "https://whiskyagents.com/ru/collections/neu"
+BASE_URL = "https://whiskyagents.com"
+URL = BASE_URL + "/ru/collections/neu"
 
 HEADERS = {
     "User-Agent": (
@@ -12,19 +14,11 @@ HEADERS = {
 }
 
 
+def clean(text):
+    return " ".join(text.split()) if text else ""
+
+
 def get_products():
-    """
-    Возвращает список товаров.
-
-    Каждый товар имеет вид:
-
-    {
-        "id": "...",
-        "name": "...",
-        "price": "...",
-        "url": "..."
-    }
-    """
 
     response = requests.get(
         URL,
@@ -37,39 +31,49 @@ def get_products():
     soup = BeautifulSoup(response.text, "lxml")
 
     products = []
-
-    links = soup.find_all("a", href=True)
-
     seen = set()
 
-    for link in links:
+    # Ищем карточки товаров
+    for a in soup.select('a[href*="/products/"]'):
 
-        href = link["href"]
+        href = a.get("href")
 
-        if "/products/" not in href:
+        if not href:
             continue
 
-        full_url = href
+        url = urljoin(BASE_URL, href)
 
-        if href.startswith("/"):
-            full_url = "https://whiskyagents.com" + href
-
-        if full_url in seen:
+        if url in seen:
             continue
 
-        seen.add(full_url)
+        seen.add(url)
 
-        name = link.get_text(" ", strip=True)
+        name = clean(a.get_text())
 
-        if len(name) < 3:
+        if len(name) < 5:
             continue
+
+        # пытаемся найти цену рядом с карточкой
+        price = ""
+
+        parent = a.parent
+
+        if parent:
+            text = clean(parent.get_text())
+
+            import re
+
+            m = re.search(r"(\d+[.,]?\d*)\s*€", text)
+
+            if m:
+                price = m.group(0)
 
         products.append(
             {
-                "id": full_url,
+                "id": url,
                 "name": name,
-                "price": "",
-                "url": full_url,
+                "price": price,
+                "url": url,
             }
         )
 
