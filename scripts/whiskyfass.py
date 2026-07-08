@@ -1,7 +1,11 @@
+import re
+from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
 
-URL = "https://whiskyfass.de/Neu-im-Sortiment"
+BASE_URL = "https://whiskyfass.de"
+URL = BASE_URL + "/Neu-im-Sortiment"
 
 HEADERS = {
     "User-Agent": (
@@ -12,19 +16,20 @@ HEADERS = {
 }
 
 
+def clean(text):
+    if not text:
+        return ""
+    return " ".join(text.split())
+
+
+def extract_price(text):
+    m = re.search(r"(\d+[.,]\d+\s*€)", text)
+    if m:
+        return m.group(1)
+    return ""
+
+
 def get_products():
-    """
-    Возвращает список товаров.
-
-    Формат:
-
-    {
-        "id": "...",
-        "name": "...",
-        "price": "...",
-        "url": "..."
-    }
-    """
 
     response = requests.get(
         URL,
@@ -37,40 +42,56 @@ def get_products():
     soup = BeautifulSoup(response.text, "lxml")
 
     products = []
-
-    links = soup.find_all("a", href=True)
-
     seen = set()
 
-    for link in links:
+    # все ссылки на товары
+    for link in soup.select("a[href]"):
 
-        href = link["href"]
+        href = link.get("href")
 
-        if "/detail/" not in href:
+        if not href:
             continue
 
-        full_url = href
-
-        if href.startswith("/"):
-            full_url = "https://whiskyfass.de" + href
-
-        if full_url in seen:
+        # исключаем служебные ссылки
+        if any(x in href for x in (
+            "/konto",
+            "/warenkorb",
+            "/kontakt",
+            "/newsletter",
+            "#",
+        )):
             continue
 
-        seen.add(full_url)
-
-        name = link.get_text(" ", strip=True)
-
-        if len(name) < 3:
+        # ссылка должна вести на карточку товара
+        if href.count("/") < 2:
             continue
 
-        products.append(
-            {
-                "id": full_url,
-                "name": name,
-                "price": "",
-                "url": full_url,
-            }
-        )
+        url = urljoin(BASE_URL, href)
+
+        if url in seen:
+            continue
+
+        name = clean(link.get_text())
+
+        if len(name) < 10:
+            continue
+
+        parent = link.find_parent()
+
+        price = ""
+
+        if parent:
+            price = extract_price(parent.get_text(" ", strip=True))
+
+        products.append({
+            "id": url,
+            "name": name,
+            "price": price,
+            "url": url,
+        })
+
+        seen.add(url)
+
+    print(f"Whiskyfass: найдено {len(products)} товаров")
 
     return products
