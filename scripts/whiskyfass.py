@@ -37,57 +37,49 @@ def get_products():
     products = []
     seen = set()
 
-    for card in cards:
+    for card in cards[:40]:
 
-        link = card.select_one(
-            'a.productbox-title[href]'
-        )
+    # ---------- ССЫЛКА ----------
+    link = card.select_one(
+        "div.productbox-head a[href]"
+    )
 
-        if link is None:
-            link = card.select_one(
-                'a[href]'
-            )
+    if link is None:
+        continue
 
-        if link is None:
-            continue
+    url = urljoin(URL, link["href"])
 
-        href = link.get("href")
+    # ---------- НАЗВАНИЕ ----------
+    title = card.select_one(
+        "div.productbox-title span.title"
+    )
 
-        if not href:
-            continue
-
-        url = urljoin(URL, href)
-
-        if url in seen:
-            continue
-
-        seen.add(url)
-
+    if title:
+        name = clean(title.get_text(" ", strip=True))
+    else:
         name = clean(link.get_text(" ", strip=True))
 
-        if not name:
-            continue
+    # ---------- ЦЕНА ----------
+    price = ""
 
-        price = ""
+    price_node = (
+        card.select_one("div.price.productbox-price")
+        or card.select_one(".price_wrapper")
+        or card.select_one(".price")
+        or card.select_one('[itemprop="price"]')
+    )
 
-        price_node = (
-            card.select_one(".price")
-            or card.select_one(".product-price")
-            or card.select_one(".price_wrapper")
-            or card.select_one('[itemprop="price"]')
-        )
+    if price_node:
+        price = clean(price_node.get_text(" ", strip=True))
 
-        if price_node:
-            price = clean(price_node.get_text(" ", strip=True))
-
-        products.append(
-            {
-                "id": url,
-                "name": name,
-                "price": price,
-                "url": url,
-            }
-        )
+    products.append(
+        {
+            "id": url,
+            "name": name,
+            "price": price,
+            "url": url,
+        }
+    )
 
     products = products[:40]
 
