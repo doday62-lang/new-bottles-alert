@@ -5,13 +5,10 @@ from telegram_sender import send_message
 
 from whiskyagents import get_products as agents_products
 from whiskyfass import get_products as fass_products
-
-
-MAX_NEW_PRODUCTS_PER_STORE = 20
+from whiskysite import get_products as whiskysite_products
 
 
 def collect_new(store_name, products, known_products):
-
     new_items = []
 
     for product in products:
@@ -19,12 +16,9 @@ def collect_new(store_name, products, known_products):
         if not is_new(product["id"], known_products):
             continue
 
-        # Запоминаем ВСЕ новые товары
         add_product(product["id"], known_products)
 
-        # Но отправляем только первые 20
-        if len(new_items) < MAX_NEW_PRODUCTS_PER_STORE:
-            new_items.append(product)
+        new_items.append(product)
 
     return {
         "store": store_name,
@@ -52,18 +46,20 @@ def build_message(results):
         if not result["items"]:
             continue
 
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append(f"🏪 {result['store']} ({len(result['items'])})")
+        lines.append("━━━━━━━━━━━━━━━━━━")
+        lines.append("")
+        lines.append(
+            f"🏪 {result['store']} ({len(result['items'])})"
+        )
         lines.append("")
 
         for item in result["items"]:
 
-            line = f"• {item['name']}"
+            lines.append(f"• {item['name']}")
 
-            if item.get("price"):
-                line += f" — {item['price']}"
+            if item["price"]:
+                lines.append(f"💶 {item['price']}")
 
-            lines.append(line)
             lines.append(item["url"])
             lines.append("")
 
@@ -74,18 +70,34 @@ def main():
 
     known = load_products()
 
-    results = [
+    results = []
+
+    # WhiskyAgents
+    results.append(
         collect_new(
             "WhiskyAgents",
             agents_products(),
             known
-        ),
+        )
+    )
+
+    # Whiskyfass
+    results.append(
         collect_new(
             "Whiskyfass",
             fass_products(),
             known
         )
-    ]
+    )
+
+    # WhiskySite
+    results.append(
+        collect_new(
+            "WhiskySite",
+            whiskysite_products(),
+            known
+        )
+    )
 
     message = build_message(results)
 
