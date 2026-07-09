@@ -32,10 +32,12 @@ def get_products():
 
     for card in cards[:40]:
 
-        link = card.select_one("h2 a")
-
-        if link is None:
-            link = card.select_one("a[href]")
+        # ---------- ССЫЛКА ----------
+        link = (
+            card.select_one("a.product-thumbnail")
+            or card.select_one("h2 a")
+            or card.select_one("a[href]")
+        )
 
         if link is None:
             continue
@@ -47,14 +49,56 @@ def get_products():
 
         seen.add(url)
 
-        name = clean(link.get_text(" ", strip=True))
+        # ---------- НАЗВАНИЕ ----------
+        name = ""
 
+        selectors = [
+            ".product-title",
+            "h2",
+            "h3",
+            ".product-name",
+            ".thumbnail-title",
+        ]
+
+        for selector in selectors:
+
+            node = card.select_one(selector)
+
+            if node:
+                text = clean(node.get_text(" ", strip=True))
+
+                if text:
+                    name = text
+                    break
+
+        # название из alt картинки
+        if not name:
+
+            img = card.select_one("img")
+
+            if img:
+                name = (
+                    img.get("alt")
+                    or img.get("title")
+                    or ""
+                ).strip()
+
+        # название из title ссылки
+        if not name:
+            name = link.get("title", "").strip()
+
+        # последнее резервное значение
+        if not name:
+            name = clean(link.get_text(" ", strip=True))
+
+        # ---------- ЦЕНА ----------
         price = ""
 
         price_node = (
             card.select_one(".price")
-            or card.select_one(".product-price")
             or card.select_one(".current-price")
+            or card.select_one(".product-price")
+            or card.select_one(".regular-price")
             or card.select_one(".price-new")
         )
 
