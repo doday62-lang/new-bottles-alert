@@ -7,7 +7,7 @@ from whiskyagents import get_products as agents_products
 from whiskyfass import get_products as fass_products
 from whiskysite import get_products as whiskysite_products
 from maltucky import get_products as maltucky_products
-
+from captainscotch import get_products as captainscotch_products
 
 def collect_new(store_name, products, known_products):
     new_items = []
@@ -106,6 +106,15 @@ def main():
         )
     )
 
+    # CaptainScotch
+    results.append(
+    collect_new(
+        "CaptainScotch",
+        captainscotch_products(),
+        known
+        )
+    )
+    
     message = build_message(results)
 
     if message:
