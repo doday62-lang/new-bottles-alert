@@ -10,7 +10,7 @@ from maltucky import get_products as maltucky_products
 from captainscotch import get_products as captainscotch_products
 from deinwhisky import get_products as deinwhisky_products
 from whiskyvanzuylen import get_products as whiskyvanzuylen_products
-
+from passionforwhisky import get_products as passionforwhisky_products
 
 def collect_new(store_name, products, known_products):
     new_items = []
@@ -135,6 +135,15 @@ def main():
         )
     )
 
+    # PassionForWhisky
+    results.append(
+    collect_new(
+        "PassionForWhisky",
+        passionforwhisky_products(),
+        known,
+        )
+    )
+    
     message = build_message(results)
 
     if message:
