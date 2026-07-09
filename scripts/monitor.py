@@ -12,7 +12,9 @@ from deinwhisky import get_products as deinwhisky_products
 from whiskyvanzuylen import get_products as whiskyvanzuylen_products
 from passionforwhisky import get_products as passionforwhisky_products
 
+
 def collect_new(store_name, products, known_products):
+
     new_items = []
 
     for product in products:
@@ -27,6 +29,28 @@ def collect_new(store_name, products, known_products):
         "store": store_name,
         "items": new_items,
     }
+
+
+def safe_collect(store_name, func, known_products):
+
+    try:
+
+        products = func()
+
+        return collect_new(
+            store_name,
+            products,
+            known_products,
+        )
+
+    except Exception as e:
+
+        print(f"{store_name}: {e}")
+
+        return {
+            "store": store_name,
+            "items": [],
+        }
 
 
 def build_message(results):
@@ -72,78 +96,70 @@ def main():
 
     results = []
 
-    # WhiskyAgents
     results.append(
-        collect_new(
+        safe_collect(
             "WhiskyAgents",
-            agents_products(),
+            agents_products,
             known,
         )
     )
 
-    # Whiskyfass
     results.append(
-        collect_new(
+        safe_collect(
             "Whiskyfass",
-            fass_products(),
+            fass_products,
             known,
         )
     )
 
-    # WhiskySite
     results.append(
-        collect_new(
+        safe_collect(
             "WhiskySite",
-            whiskysite_products(),
+            whiskysite_products,
             known,
         )
     )
 
-    # Maltucky
     results.append(
-        collect_new(
+        safe_collect(
             "Maltucky",
-            maltucky_products(),
+            maltucky_products,
             known,
         )
     )
 
-    # CaptainScotch
     results.append(
-        collect_new(
+        safe_collect(
             "CaptainScotch",
-            captainscotch_products(),
+            captainscotch_products,
             known,
         )
     )
 
-    # DeinWhisky
     results.append(
-        collect_new(
+        safe_collect(
             "DeinWhisky",
-            deinwhisky_products(),
+            deinwhisky_products,
             known,
         )
     )
 
-    # Whisky Van Zuylen
     results.append(
-        collect_new(
+        safe_collect(
             "WhiskyVanZuylen",
-            whiskyvanzuylen_products(),
+            whiskyvanzuylen_products,
             known,
         )
     )
 
-    # PassionForWhisky
     results.append(
-    collect_new(
-        "PassionForWhisky",
-        passionforwhisky_products(),
-        known,
+        safe_collect(
+            "PassionForWhisky",
+            passionforwhisky_products,
+            known,
         )
     )
-    
+
     message = build_message(results)
 
     if message:
