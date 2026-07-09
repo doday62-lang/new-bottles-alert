@@ -2,8 +2,12 @@ name: Whisky Monitor
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/20 * * * *"
   workflow_dispatch:
+
+concurrency:
+  group: whisky-monitor
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -38,7 +42,7 @@ jobs:
       - name: Commit updated database
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions.noreply.github.com"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add data/known_products.json
 
