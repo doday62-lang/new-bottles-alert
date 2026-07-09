@@ -2,12 +2,8 @@ name: Whisky Monitor
 
 on:
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
-
-concurrency:
-  group: whisky-monitor
-  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -19,9 +15,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,14 +34,12 @@ jobs:
 
       - name: Commit updated database
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
           git add data/known_products.json
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
+          git diff --cached --quiet || (
             git commit -m "Update known products"
             git push
-          fi
+          )
