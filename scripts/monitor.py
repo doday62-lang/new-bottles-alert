@@ -9,6 +9,8 @@ from whiskysite import get_products as whiskysite_products
 from maltucky import get_products as maltucky_products
 from captainscotch import get_products as captainscotch_products
 from deinwhisky import get_products as deinwhisky_products
+from whiskyvanzuylen import get_products as whiskyvanzuylen_products
+
 
 def collect_new(store_name, products, known_products):
     new_items = []
@@ -19,12 +21,11 @@ def collect_new(store_name, products, known_products):
             continue
 
         add_product(product["id"], known_products)
-
         new_items.append(product)
 
     return {
         "store": store_name,
-        "items": new_items
+        "items": new_items,
     }
 
 
@@ -40,7 +41,7 @@ def build_message(results):
     lines = [
         f"🥃 Найдено {total} новых бутылок",
         f"📅 {now}",
-        ""
+        "",
     ]
 
     for result in results:
@@ -76,7 +77,7 @@ def main():
         collect_new(
             "WhiskyAgents",
             agents_products(),
-            known
+            known,
         )
     )
 
@@ -85,7 +86,7 @@ def main():
         collect_new(
             "Whiskyfass",
             fass_products(),
-            known
+            known,
         )
     )
 
@@ -94,7 +95,7 @@ def main():
         collect_new(
             "WhiskySite",
             whiskysite_products(),
-            known
+            known,
         )
     )
 
@@ -103,28 +104,37 @@ def main():
         collect_new(
             "Maltucky",
             maltucky_products(),
-            known
+            known,
         )
     )
 
     # CaptainScotch
     results.append(
-    collect_new(
-        "CaptainScotch",
-        captainscotch_products(),
-        known
+        collect_new(
+            "CaptainScotch",
+            captainscotch_products(),
+            known,
         )
     )
 
     # DeinWhisky
     results.append(
-    collect_new(
-        "DeinWhisky",
-        deinwhisky_products(),
-        known
+        collect_new(
+            "DeinWhisky",
+            deinwhisky_products(),
+            known,
         )
     )
-    
+
+    # Whisky Van Zuylen
+    results.append(
+        collect_new(
+            "WhiskyVanZuylen",
+            whiskyvanzuylen_products(),
+            known,
+        )
+    )
+
     message = build_message(results)
 
     if message:
