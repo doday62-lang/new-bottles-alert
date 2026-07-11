@@ -11,7 +11,7 @@ from captainscotch import get_products as captainscotch_products
 from deinwhisky import get_products as deinwhisky_products
 from whiskyvanzuylen import get_products as whiskyvanzuylen_products
 from passionforwhisky import get_products as passionforwhisky_products
-
+from utopiaspirits import get_products as utopiaspirits_products
 
 def collect_new(store_name, products, known_products):
 
@@ -160,6 +160,14 @@ def main():
         )
     )
 
+    results.append(
+    safe_collect(
+        "UtopiaSpirits",
+        utopiaspirits_products,
+        known,
+        )
+    )
+    
     message = build_message(results)
 
     if message:
