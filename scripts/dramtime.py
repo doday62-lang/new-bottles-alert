@@ -9,7 +9,7 @@ HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/138.0 Safari/537.36"
+        "Chrome/138.0.0.0 Safari/537.36"
     )
 }
 
@@ -41,15 +41,17 @@ def get_products():
 
     for card in cards[:40]:
 
+        # ---------- Ссылка ----------
         link = (
             card.select_one("a.woocommerce-LoopProduct-link")
-            or card.select_one("a")
+            or card.select_one("h2 a")
+            or card.select_one("a[href]")
         )
 
-        if link is None:
+        if not link:
             continue
 
-        href = link.get("href")
+        href = link.get("href", "").strip()
 
         if not href:
             continue
@@ -61,16 +63,23 @@ def get_products():
 
         seen.add(url)
 
+        # ---------- Название ----------
+        name = ""
+
         title = (
             card.select_one("h2.woocommerce-loop-product__title")
+            or card.select_one("h2")
             or card.select_one(".woocommerce-loop-product__title")
+            or card.select_one(".product-title")
         )
 
         if title:
             name = clean(title.get_text(" ", strip=True))
-        else:
+
+        if not name:
             name = clean(link.get_text(" ", strip=True))
 
+        # ---------- Цена ----------
         price = ""
 
         price_node = (
@@ -94,3 +103,10 @@ def get_products():
     print(f"Dramtime: найдено {len(products)} товаров")
 
     return products
+
+
+if __name__ == "__main__":
+    items = get_products()
+
+    for item in items:
+        print(item)
