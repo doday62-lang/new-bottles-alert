@@ -1,17 +1,6 @@
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from playwright.sync_api import sync_playwright
 
-BASE_URL = "https://www.dramtime.eu"
-URL = BASE_URL + "/product-category/whisky-en/?orderby=date"
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/138.0.0.0 Safari/537.36"
-    )
-}
+URL = "https://www.dramtime.eu/product-category/whisky-en/?orderby=date"
 
 
 def clean(text):
@@ -20,85 +9,102 @@ def clean(text):
 
 def get_products():
 
-    try:
-        response = requests.get(
-            URL,
-            headers=HEADERS,
-            timeout=30,
-        )
-        response.raise_for_status()
-
-    except requests.RequestException as e:
-        print(f"Dramtime: {e}")
-        return []
-
-    soup = BeautifulSoup(response.text, "lxml")
-
     products = []
-    seen = set()
 
-    cards = soup.select("li.product")
+    try:
 
-    for card in cards[:40]:
+        with sync_playwright() as p:
 
-        # ---------- Ссылка ----------
-        link = (
-            card.select_one("a.woocommerce-LoopProduct-link")
-            or card.select_one("h2 a")
-            or card.select_one("a[href]")
-        )
+            browser = p.chromium.launch(
+                headless=True
+            )
 
-        if not link:
-            continue
+            page = browser.new_page(
+                viewport={"width": 1600, "height": 1200},
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/138.0 Safari/537.36"
+                ),
+            )
 
-        href = link.get("href", "").strip()
+            page.goto(
+                URL,
+                wait_until="networkidle",
+                timeout=60000,
+            )
 
-        if not href:
-            continue
+            page.wait_for_timeout(5000)
 
-        url = urljoin(BASE_URL, href)
+            cards = page.locator("li.product")
 
-        if url in seen:
-            continue
+            count = cards.count()
 
-        seen.add(url)
+            for i in range(min(count, 40)):
 
-        # ---------- Название ----------
-        name = ""
+                card = cards.nth(i)
 
-        title = (
-            card.select_one("h2.woocommerce-loop-product__title")
-            or card.select_one("h2")
-            or card.select_one(".woocommerce-loop-product__title")
-            or card.select_one(".product-title")
-        )
+                try:
 
-        if title:
-            name = clean(title.get_text(" ", strip=True))
+                    link = card.locator("a").first.get_attribute("href")
 
-        if not name:
-            name = clean(link.get_text(" ", strip=True))
+                    if not link:
+                        continue
 
-        # ---------- Цена ----------
-        price = ""
+                    title = ""
 
-        price_node = (
-            card.select_one("span.price")
-            or card.select_one(".price")
-            or card.select_one(".woocommerce-Price-amount")
-        )
+                    selectors = [
+                        "h2",
+                        ".woocommerce-loop-product__title",
+                        ".product-title",
+                        ".title",
+                    ]
 
-        if price_node:
-            price = clean(price_node.get_text(" ", strip=True))
+                    for selector in selectors:
+                        loc = card.locator(selector)
 
-        products.append(
-            {
-                "id": url,
-                "name": name,
-                "price": price,
-                "url": url,
-            }
-        )
+                        if loc.count():
+                            title = clean(loc.first.inner_text())
+
+                            if title:
+                                break
+
+                    if not title:
+                        title = clean(card.locator("a").first.inner_text())
+
+                    price = ""
+
+                    price_selectors = [
+                        ".price",
+                        ".woocommerce-Price-amount",
+                        ".amount",
+                    ]
+
+                    for selector in price_selectors:
+                        loc = card.locator(selector)
+
+                        if loc.count():
+                            price = clean(loc.first.inner_text())
+
+                            if price:
+                                break
+
+                    products.append(
+                        {
+                            "id": link,
+                            "name": title,
+                            "price": price,
+                            "url": link,
+                        }
+                    )
+
+                except Exception:
+                    continue
+
+            browser.close()
+
+    except Exception as e:
+        print(f"Dramtime: {e}")
 
     print(f"Dramtime: найдено {len(products)} товаров")
 
@@ -106,6 +112,7 @@ def get_products():
 
 
 if __name__ == "__main__":
+
     items = get_products()
 
     for item in items:
