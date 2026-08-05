@@ -13,6 +13,7 @@ from whiskyvanzuylen import get_products as whiskyvanzuylen_products
 from passionforwhisky import get_products as passionforwhisky_products
 from utopiaspirits import get_products as utopiaspirits_products
 from whiskytaste import get_products as whiskytaste_products
+from whiskyhimmel import get_products as whiskyhimmel_products
 
 def collect_new(store_name, products, known_products):
 
@@ -173,6 +174,14 @@ def main():
     safe_collect(
         "WhiskyTaste",
         whiskytaste_products,
+        known,
+        )
+    )
+    
+    results.append(
+    safe_collect(
+        "WhiskyHimmel",
+        whiskyhimmel_products,
         known,
         )
     )
