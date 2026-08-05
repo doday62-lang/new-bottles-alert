@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 BASE_URL = "https://www.whiskyhimmel.de"
-URL = BASE_URL + "/schottland?page=3&sort=newest"
+URL = BASE_URL + "/schottland?page=1&sort=newest"
 
 HEADERS = {
     "User-Agent": (
