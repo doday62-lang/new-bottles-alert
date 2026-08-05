@@ -221,7 +221,7 @@ def main():
         known,
         )
     )
-    
+
     message = build_message(results)
 
     if message:
