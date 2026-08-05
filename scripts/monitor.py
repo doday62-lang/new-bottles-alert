@@ -18,6 +18,7 @@ from killis import get_products as killis_products
 from musthavemalts import get_products as musthavemalts_products
 from potstill import get_products as potstill_products
 from dramtime import get_products as dramtime_products
+from genussamgaumen import get_products as genussamgaumen_products
 
 def collect_new(store_name, products, known_products):
 
@@ -222,6 +223,14 @@ def main():
         )
     )
 
+    results.append(
+    safe_collect(
+        "GenussAmGaumen",
+        genussamgaumen_products,
+        known,
+        )
+    )
+    
     message = build_message(results)
 
     if message:
