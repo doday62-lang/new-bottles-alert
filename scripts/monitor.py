@@ -15,6 +15,7 @@ from utopiaspirits import get_products as utopiaspirits_products
 from whiskytaste import get_products as whiskytaste_products
 from whiskyhimmel import get_products as whiskyhimmel_products
 from killis import get_products as killis_products
+from musthavemalts import get_products as musthavemalts_products
 
 def collect_new(store_name, products, known_products):
 
@@ -191,6 +192,14 @@ def main():
     safe_collect(
         "Killis",
         killis_products,
+        known,
+        )
+    )
+
+    results.append(
+    safe_collect(
+        "MustHaveMalts",
+        musthavemalts_products,
         known,
         )
     )
